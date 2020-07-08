@@ -24,7 +24,7 @@ jobs:
         name: Prepare
         id: prepare
         run: |
-          DOCKER_USERNAME=matthewgall
+          DOCKER_USERNAME=buildsocietybot
           DOCKER_IMAGE=buildsociety/nebula
           DOCKER_PLATFORMS=linux/amd64,linux/386,linux/ppc64le,linux/arm/6,linux/arm/7,linux/arm64
           VERSION=$(curl --silent "https://api.github.com/repos/slackhq/nebula/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')

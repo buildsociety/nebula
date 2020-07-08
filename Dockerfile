@@ -8,23 +8,20 @@ ARG VERSION
 COPY --from=xgo / /
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
-RUN printf "I am running on ${BUILDPLATFORM:-linux/amd64}, building for ${TARGETPLATFORM:-linux/amd64}\n$(uname -a)\n"
-
-RUN apk --update --no-cache add \
+RUN printf "I am running on ${BUILDPLATFORM:-linux/amd64}, building for ${TARGETPLATFORM:-linux/amd64}\n$(uname -a)\n" \
+    && apk --update --no-cache add \
         bash \
         build-base \
         gcc \
         git \
         make \
         sed \
- && rm -rf /tmp/* /var/cache/apk/*
-
-RUN git clone --branch ${VERSION} https://github.com/slackhq/nebula /go/src/github.com/slackhq/nebula
-
-WORKDIR /go/src/github.com/slackhq/nebula
-RUN make BUILD_NUMBER="${VERSION#v}" build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula
-RUN mkdir -p /go/build/${TARGETPLATFORM:-linux/amd64}
-RUN mv /go/src/github.com/slackhq/nebula/build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula /go/build/${TARGETPLATFORM:-linux/amd64}/
+    && rm -rf /tmp/* /var/cache/apk/* \
+    && git clone --branch ${VERSION} https://github.com/slackhq/nebula /go/src/github.com/slackhq/nebula \
+    && cd /go/src/github.com/slackhq/nebula \
+    && make BUILD_NUMBER="${VERSION#v}" build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula \
+    && mkdir -p /go/build/${TARGETPLATFORM:-linux/amd64} \
+    && mv /go/src/github.com/slackhq/nebula/build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula /go/build/${TARGETPLATFORM:-linux/amd64}/
 
 FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine:latest
 
