@@ -50,4 +50,4 @@ RUN nebula -version
 VOLUME ["/config"]
 
 ENTRYPOINT [ "/usr/local/bin/nebula" ]
-CMD []
+CMD ["-config", "/config/config.yaml"]
