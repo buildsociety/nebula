@@ -53,7 +53,7 @@ jobs:
       - name: anchore scan
         uses: anchore/scan-action@master
         with:
-          image-reference: "localbuild/testimage:latest"
+          image-reference: ${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version}}
           dockerfile-path: "Dockerfile"
           fail-build: true
           acs-report-enable: true
