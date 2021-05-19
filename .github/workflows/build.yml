@@ -44,7 +44,7 @@ jobs:
           BUILDX_ARGS=$( \
             echo VERSION=${VERSION}; \
             echo BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ'); \
-            echo VCS_REF=${GITHUB_SHA::8} )
+            echo VCS_REF=${GITHUB_SHA::8})
           BUILDX_ARGS="${BUILDX_ARGS//$'\n'/'%0A'}"
           echo ::set-output name=buildx_args::${BUILDX_ARGS}
           echo ::set-output name=tags::${TAGS}
