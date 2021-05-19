@@ -24,51 +24,82 @@ jobs:
         name: Prepare
         id: prepare
         run: |
-          DOCKER_USERNAME=buildsocietybot
-          DOCKER_IMAGE=buildsociety/nebula
-          DOCKER_PLATFORMS=linux/amd64,linux/386,linux/ppc64le,linux/arm/6,linux/arm/7,linux/arm64
+          DOCKER_USERNAME=$(if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then echo buildsocietybot; else echo ${{ secrets.DOCKER_USERNAME }}; fi)
+          DOCKER_IMAGE=${{ github.actor }}/nebula
+          DOCKER_IMAGE_CERT=${{ github.actor }}/nebula-cert
+          DOCKER_PLATFORMS=linux/amd64,linux/386,linux/ppc64le,linux/arm/v6,linux/arm/v7,linux/arm64/v8
           VERSION=$(curl --silent "https://api.github.com/repos/slackhq/nebula/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
 
-          TAGS="--tag ${DOCKER_IMAGE}:${VERSION}"
-          TAGS="$TAGS --tag ${DOCKER_IMAGE}:latest"
+          TAGS="${DOCKER_IMAGE}:${VERSION}"
+          TAGS="$TAGS,${DOCKER_IMAGE}:latest"
+
+          TAGS_CERT="${DOCKER_IMAGE_CERT}:${VERSION}"
+          TAGS_CERT="$TAGS_CERT,${DOCKER_IMAGE_CERT}:latest"
 
           echo ::set-output name=docker_username::${DOCKER_USERNAME}
           echo ::set-output name=docker_image::${DOCKER_IMAGE}
+          echo ::set-output name=docker_image_cert::${DOCKER_IMAGE_CERT}
           echo ::set-output name=version::${VERSION}
-          echo ::set-output name=buildx_args::--platform ${DOCKER_PLATFORMS} \
-            --build-arg VERSION=$(curl --silent "https://api.github.com/repos/slackhq/nebula/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")') \
-            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-            --build-arg VCS_REF=${GITHUB_SHA::8} \
-            ${TAGS} --file Dockerfile .
+          echo ::set-output name=docker_platforms::${DOCKER_PLATFORMS}
+          BUILDX_ARGS=$( \
+            echo VERSION=${VERSION}; \
+            echo BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ'); \
+            echo VCS_REF=${GITHUB_SHA::8} )
+          BUILDX_ARGS="${BUILDX_ARGS//$'\n'/'%0A'}"
+          echo ::set-output name=buildx_args::${BUILDX_ARGS}
+          echo ::set-output name=tags::${TAGS}
+          echo ::set-output name=tags_cert::${TAGS_CERT}
+      -
+        name: QEMU
+        uses: docker/setup-qemu-action@v1.1.0
       -
         name: Set up Docker Buildx
-        uses: crazy-max/ghaction-docker-buildx@v3.2.0
+        uses: docker/setup-buildx-action@v1.3.0
       -
         name: Checkout
-        uses: actions/checkout@v2.3.1
+        uses: actions/checkout@v2.3.4
       -
         name: Docker Buildx (build)
-        run: |
-          docker buildx build --output "type=image,push=false" ${{ steps.prepare.outputs.buildx_args }}
+        uses: docker/build-push-action@v2.4.0
+        with:
+          file: Dockerfile
+          build-args: ${{ steps.prepare.outputs.buildx_args }}
+          context: .
+          push: false
+          platforms: ${{ steps.prepare.outputs.docker_platforms }}
+          tags: ${{ steps.prepare.outputs.tags }}
       -
         name: Docker Login
         if: success() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          echo "${DOCKER_PASSWORD}" | docker login --username "${{ steps.prepare.outputs.docker_username }}" --password-stdin
+        uses: docker/login-action@v1.9.0
+        with:
+          username: ${{ steps.prepare.outputs.docker_username }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
       -
-        name: Docker Buildx (push)
+        name: Docker Buildx (push) - nebula
         if: success() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
-        run: |
-          docker buildx build --output "type=image,push=true" ${{ steps.prepare.outputs.buildx_args }}
+        uses: docker/build-push-action@v2.4.0
+        with:
+          file: Dockerfile
+          build-args: ${{ steps.prepare.outputs.buildx_args }}
+          context: .
+          push: true
+          platforms: ${{ steps.prepare.outputs.docker_platforms }}
+          tags: ${{ steps.prepare.outputs.tags }}
+      -
+        name: Docker Buildx (push) - nebula-cert
+        if: success() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
+        uses: docker/build-push-action@v2.4.0
+        with:
+          file: nebula-cert.Dockerfile
+          build-args: ${{ steps.prepare.outputs.buildx_args }}
+          context: .
+          push: true
+          platforms: ${{ steps.prepare.outputs.docker_platforms }}
+          tags: ${{ steps.prepare.outputs.tags_cert }}
       -
         name: Docker Check Manifest
         if: success() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
         run: |
           docker run --rm mplatform/mquery ${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}
-      -
-        name: Clear
-        if: always() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
-        run: |
-          rm -f ${HOME}/.docker/config.json
+          docker run --rm mplatform/mquery ${{ steps.prepare.outputs.docker_image_cert }}:${{ steps.prepare.outputs.version }}
