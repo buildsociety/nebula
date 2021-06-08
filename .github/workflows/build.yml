@@ -25,8 +25,8 @@ jobs:
         id: prepare
         run: |
           DOCKER_USERNAME=$(if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then echo buildsocietybot; else echo ${{ secrets.DOCKER_USERNAME }}; fi)
-          DOCKER_IMAGE=${{ github.actor }}/nebula
-          DOCKER_IMAGE_CERT=${{ github.actor }}/nebula-cert
+          DOCKER_IMAGE=${{ github.repository }}
+          DOCKER_IMAGE_CERT=${{ github.repository }}-cert
           DOCKER_PLATFORMS=linux/amd64,linux/386,linux/ppc64le,linux/arm/v6,linux/arm/v7,linux/arm64/v8
           VERSION=$(curl --silent "https://api.github.com/repos/slackhq/nebula/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
 
