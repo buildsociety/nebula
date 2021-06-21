@@ -12,8 +12,10 @@ RUN printf "I am running on ${BUILDPLATFORM:-linux/amd64}, building for ${TARGET
     && git -c advice.detachedHead=false clone --branch ${VERSION} https://github.com/slackhq/nebula /go/src/github.com/slackhq/nebula \
     && cd /go/src/github.com/slackhq/nebula \
     && make BUILD_NUMBER="${VERSION#v}" build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula \
+    && make BUILD_NUMBER="${VERSION#v}" build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula-cert \
     && mkdir -p /go/build/${TARGETPLATFORM:-linux/amd64} \
-    && mv /go/src/github.com/slackhq/nebula/build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula /go/build/${TARGETPLATFORM:-linux/amd64}/
+    && mv /go/src/github.com/slackhq/nebula/build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula /go/build/${TARGETPLATFORM:-linux/amd64}/ \
+    && mv /go/src/github.com/slackhq/nebula/build/$(echo ${TARGETPLATFORM:-linux/amd64} | sed -e "s/\/v/-/g" -e "s/\//-/g")/nebula-cert /go/build/${TARGETPLATFORM:-linux/amd64}/
 
 FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine:latest
 
@@ -34,7 +36,9 @@ LABEL maintainer="buildsociety" \
       org.opencontainers.image.licenses="MIT"
 
 COPY --from=builder /go/build/${TARGETPLATFORM:-linux/amd64}/nebula /usr/local/bin/nebula
+COPY --from=builder /go/build/${TARGETPLATFORM:-linux/amd64}/nebula-cert /usr/local/bin/nebula-cert
 RUN nebula -version
+RUN nebula-cert -version
 
 VOLUME ["/config"]
 
